@@ -1,0 +1,142 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: data-pipeline
+spec:
+  entrypoint: source
+  templates:
+    - name: source
+      dag:
+        tasks:
+          - name: extracting-from-source-a
+            template: extractor
+            arguments:
+              parameters:
+                [
+                  {
+                    name: initial_message,
+                    value: "Extacting Text from Source A",
+                  },
+                  { name: delay, value: 4 },
+                  { name: message, value: "Text Extracted" },
+                ]
+          - name: extracting-from-source-b
+            template: extractor
+            arguments:
+              parameters:
+                [
+                  {
+                    name: initial_message,
+                    value: "Extacting Text from Source B",
+                  },
+                  { name: delay, value: 2 },
+                  { name: message, value: "Text Extracted" },
+                ]
+          - name: extracting-from-source-c
+            template: transformer
+            arguments:
+              parameters:
+                [
+                  {
+                    name: initial_message,
+                    value: "Extacting PDF from Source C",
+                  },
+                  { name: delay, value: 3 },
+                  { name: message, value: "PDF Extracted" },
+                ]
+          - name: transforming-source-c-extract
+            dependencies: [extracting-from-source-c]
+            template: transformer
+            arguments:
+              parameters:
+                [
+                  {
+                    name: initial_message,
+                    value: "Transforming PDF from Source C",
+                  },
+                  { name: delay, value: 3 },
+                  { name: message, value: "PDF Transformed to Text" },
+                ]
+          - name: aggregating-data
+            dependencies:
+              [
+                extracting-from-source-a,
+                extracting-from-source-b,
+                transforming-source-c-extract,
+              ]
+            template: aggregator
+            arguments:
+              parameters:
+                [
+                  {
+                    name: initial_message,
+                    value: "Aggregating Text from All Sources",
+                  },
+                  { name: delay, value: 4 },
+                  { name: message, value: "Text Aggregated" },
+                ]
+          - name: transforming-data-for-sql
+            dependencies: [aggregating-data]
+            template: transformer
+            arguments:
+              parameters:
+                [
+                  { name: initial_message, value: "Tranforming Data for SQL" },
+                  { name: delay, value: 4 },
+                  { name: message, value: "Data Transformed" },
+                ]
+          - name: transforming-data-for-nosql
+            dependencies: [aggregating-data]
+            template: transformer
+            arguments:
+              parameters:
+                [
+                  {
+                    name: initial_message,
+                    value: "Tranforming Data for NOSQL",
+                  },
+                  { name: delay, value: 2 },
+                  { name: message, value: "Data Transformed" },
+                ]
+    - name: extractor
+      inputs:
+        parameters:
+          - name: initial_message
+          - name: delay
+          - name: message
+      container:
+        image: busybox
+        command:
+          [
+            "/bin/sh",
+            "-c",
+            "echo {{inputs.parameters.initial_message}}; sleep {{inputs.parameters.delay}};echo {{inputs.parameters.message}}",
+          ]
+    - name: transformer
+      inputs:
+        parameters:
+          - name: initial_message
+          - name: delay
+          - name: message
+      container:
+        image: busybox
+        command:
+          [
+            "/bin/sh",
+            "-c",
+            "echo {{inputs.parameters.initial_message}}; sleep {{inputs.parameters.delay}};echo {{inputs.parameters.message}}",
+          ]
+    - name: aggregator
+      inputs:
+        parameters:
+          - name: initial_message
+          - name: delay
+          - name: message
+      container:
+        image: alpine
+        command:
+          [
+            "/bin/sh",
+            "-c",
+            "echo {{inputs.parameters.initial_message}}; sleep {{inputs.parameters.delay}};echo {{inputs.parameters.message}}",
+          ]
